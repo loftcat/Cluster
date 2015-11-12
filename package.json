@@ -1,0 +1,7 @@
+{
+    "name": "culster-no10",
+    "main": "app.js",
+    "version": "0.0.1",
+    "private":"true",
+    "description":"网络爬虫程序,抓取所需的原始数据,并定期更新"
+}
