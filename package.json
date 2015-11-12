@@ -3,5 +3,10 @@
     "main": "app.js",
     "version": "0.0.1",
     "private":"true",
-    "description":"网络爬虫程序,抓取所需的原始数据,并定期更新"
+    "description":"网络爬虫程序,抓取所需的原始数据,并定期更新",
+    "dependencies": {
+        "cheerio": "0.19.0",
+        "iconv":"2.1.11",
+        "mongoose":"4.2.5"
+    }
 }
