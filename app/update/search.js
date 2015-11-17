@@ -2,7 +2,6 @@
  * Created by hebin on 2015/7/24.
  */
 var cheerio = require("cheerio");
-var Iconv = require('iconv').Iconv;
 
 var searchFinalFlowers = function (http, options, func) {
     var clientReq = http.request(options, function (res) {

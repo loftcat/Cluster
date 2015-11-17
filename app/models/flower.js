@@ -185,7 +185,8 @@ var flowerSchema = new Schema({
     name:String,
     desc : String,
     type : String,
-    head_from:String
+    head_from:String,
+    head_pic:String
 });
 
 mongodb.mongoose.model("flower", flowerSchema);
@@ -202,6 +203,17 @@ var FlowerDao = function () {
         });
     };
 
+    this.updatePic = function(_id,head_pic,callback) {
+        Flower.findByIdAndUpdate(_id,{$set:{head_pic:head_pic} },{upsert:true},function(err,data){
+            if(callback){
+                callback(err,data);
+            }
+        });
+
+    };
+
+
+
     this.delete = function(id, callback) {
         Flower.remove({_id:id},function(err,docs){
             if(callback){
@@ -212,6 +224,13 @@ var FlowerDao = function () {
 
     this.find = function(name, callback) {
         Flower.find({name:name},function(err,docs) {
+            if(callback){
+                callback(err,docs);
+            }
+        });
+    };
+    this.findNext = function(pre,each,callback) {
+        Flower.find().skip(pre).limit(each).exec(function(err,docs) {
             if(callback){
                 callback(err,docs);
             }
@@ -235,7 +254,7 @@ var FlowerDao = function () {
     this.count = function(callback) {
         Flower.count(function(err,count){
             if(callback){
-                callback(count);
+                callback(err,count);
             }
         });
     };

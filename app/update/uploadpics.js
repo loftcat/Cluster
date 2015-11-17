@@ -31,7 +31,7 @@ function uptoken(bucketname) {
     return putPolicy.token();
 }
 
-function uploadBuf(body, key, uptoken) {
+function uploadBuf(body, key, uptoken,func) {
     var extra = new qiniu.io.PutExtra();
     //extra.params = params;
     //extra.mimeType = mimeType;
@@ -42,10 +42,12 @@ function uploadBuf(body, key, uptoken) {
         if (!err) {
             // 上传成功， 处理返回值
             console.log(ret.key, ret.hash);
+            func(err,ret);
             // ret.key & ret.hash
         } else {
             // 上传失败， 处理返回代码
-            console.log(err)
+            console.log(err);
+            func(1);
             // http://developer.qiniu.com/docs/v6/api/reference/codes.html
         }
     });
@@ -66,34 +68,32 @@ var readPic_url = function (pre) {
         if (err) {
             console.error(err);
             if (pre < total - 1) {
-                readPic_url(pre++)
+                readPic_url(++pre)
             }else{
                 process.exit(0);
             }
         } else {
             if (docs.length > 0) {
                 if (docs[0].head_from != null) {
-                    console.log(docs[0].head_from);
-                    download(docs[0].head_from, "E:webspace/Cluster/app/update/test.jpg", function(err, res) {
-                        if(res.statusCode==200){
-                            uploadBuf
-                        }
-                        //if (pre < total - 1) {
-                        //    readPic_url(pre++)
-                        //}else{
-                        //    process.exit(0);
-                        //}
+                    download(pre,docs[0], function(err, res) {
+                      if(err){
+                          if (pre < total - 1) {
+                              readPic_url(++pre)
+                          }else{
+                              process.exit(0);
+                          }
+                      }
                     });
                 }else{
                     if (pre < total - 1) {
-                        readPic_url(pre++)
+                        readPic_url(++pre)
                     }else{
                         process.exit(0);
                     }
                 }
             }else{
                 if (pre < total - 1) {
-                    readPic_url(pre++)
+                    readPic_url(++pre)
                 }else{
                     process.exit(0);
                 }
@@ -105,23 +105,19 @@ var readPic_url = function (pre) {
 
 
 var readcount = function () {
-    //var flowerDao = new FlowerDao();
-    //flowerDao.count(function (err, count) {
-    //    total = count;
-    //    readPic_url();
-    //});
-    total = 1;
-    readPic_url(0);
+    var flowerDao = new FlowerDao();
+    flowerDao.count(function (err, count) {
+        total = count;
+        readPic_url(0);
+    });
 }
 
 
-readcount();
 
 
 
-function download(url, savefile, callback) {
-    console.log('download', url, 'to', savefile)
-    var urlinfo = urlparse(url);
+function download(pre,item, callback) {
+    var urlinfo = urlparse(item.head_from);
     var options = {
         method: 'GET',
         host: urlinfo.hostname,
@@ -134,12 +130,40 @@ function download(url, savefile, callback) {
         options.path += urlinfo.search;
     }
     var req = http.request(options, function(res) {
-        var writestream = fs.createWriteStream(savefile);
-        writestream.on('close', function() {
-            callback(null, res);
-        });
-        res.pipe(writestream);
+        if(res.statusCode==200){
+            var bufs= [];
+            res.on("data", function (chunk) {
+                bufs.push(chunk);
+            });
 
+            res.on("end", function () {
+                var buf = Buffer.concat(bufs);
+                uploadBuf(buf, Date.now()+".jpg", uptoken(BUCKETNAME), function (err,ret) {
+                    console.log(ret);
+                    if(err) {
+                        if (pre < total - 1) {
+                            readPic_url(++pre)
+                        } else {
+                            process.exit(0);
+                        }
+                    }else{
+                        var flowerDao = new FlowerDao();
+                        flowerDao.updatePic(item._id,ret.key, function (err,data) {
+                                if (pre < total - 1) {
+                                    readPic_url(++pre)
+                                } else {
+                                    process.exit(0);
+                                }
+                        })
+                    }
+                });
+            });
+
+        }else{
+            if(callback){
+                callback(1)
+            }
+        }
     });
     req.end();
 };
@@ -147,6 +171,7 @@ function download(url, savefile, callback) {
 
 
 
+readcount();
 
 
 
