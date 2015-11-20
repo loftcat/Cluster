@@ -13,10 +13,7 @@ var qiniu = require('qiniu');
 qiniu.conf.ACCESS_KEY = 'omw-A-j7ncLvndxamWR-9hGzCnJeydBj_cSe04jd';
 qiniu.conf.SECRET_KEY = 'ZMCYXG_VdSTplpZ0pebZQ6SalfRDmgxxcvXlqpgb';
 
-qiniu.conf.ACCESS_KEY = "omw-A-j7ncLvndxamWR-9hGzCnJeydBj_cSe04jd";
-qiniu.conf.SECRET_KEY = "ZMCYXG_VdSTplpZ0pebZQ6SalfRDmgxxcvXlqpgb";
-
-var BUCKETNAME='player-head';
+var BUCKETNAME='fwimg';
 
 
 
@@ -54,20 +51,17 @@ function uploadBuf(body, key, uptoken,func) {
 }
 
 
-
-
-
-
-
 var each = 1;
 var total = 0;
 
 var readPic_url = function (pre) {
+    console.log(pre);
     var flowerDao = new FlowerDao();
     flowerDao.findNext(pre, each, function (err, docs) {
         if (err) {
             console.error(err);
             if (pre < total - 1) {
+                console.log("1");
                 readPic_url(++pre)
             }else{
                 process.exit(0);
@@ -75,9 +69,10 @@ var readPic_url = function (pre) {
         } else {
             if (docs.length > 0) {
                 if (docs[0].head_from != null) {
-                    download(pre,docs[0], function(err, res) {
+                    download(80,pre,docs[0], function(err, res) {
                       if(err){
                           if (pre < total - 1) {
+                              console.log("2");
                               readPic_url(++pre)
                           }else{
                               process.exit(0);
@@ -86,6 +81,7 @@ var readPic_url = function (pre) {
                     });
                 }else{
                     if (pre < total - 1) {
+                        console.log("3");
                         readPic_url(++pre)
                     }else{
                         process.exit(0);
@@ -93,6 +89,7 @@ var readPic_url = function (pre) {
                 }
             }else{
                 if (pre < total - 1) {
+                    console.log("4");
                     readPic_url(++pre)
                 }else{
                     process.exit(0);
@@ -116,19 +113,23 @@ var readcount = function () {
 
 
 
-function download(pre,item, callback) {
+function download(port,pre,item, callback) {
+
     var urlinfo = urlparse(item.head_from);
     var options = {
+        port: port,
         method: 'GET',
         host: urlinfo.hostname,
         path: urlinfo.pathname
     };
-    if(urlinfo.port) {
-        options.port = urlinfo.port;
-    }
     if(urlinfo.search) {
         options.path += urlinfo.search;
     }
+    console.log(options.path);
+    console.log(options.host);
+
+
+
     var req = http.request(options, function(res) {
         if(res.statusCode==200){
             var bufs= [];
@@ -142,6 +143,7 @@ function download(pre,item, callback) {
                     console.log(ret);
                     if(err) {
                         if (pre < total - 1) {
+                            console.log("5");
                             readPic_url(++pre)
                         } else {
                             process.exit(0);
@@ -150,6 +152,7 @@ function download(pre,item, callback) {
                         var flowerDao = new FlowerDao();
                         flowerDao.updatePic(item._id,ret.key, function (err,data) {
                                 if (pre < total - 1) {
+                                    console.log("6");
                                     readPic_url(++pre)
                                 } else {
                                     process.exit(0);
@@ -159,7 +162,96 @@ function download(pre,item, callback) {
                 });
             });
 
+        }
+        else if(res.statusCode==301||res.statusCode==302){
+            if(port!=8080) {
+                console.log(res.statusCode + "  " + item.head_from + "  " + res.headers["location"]);
+                download(8080, pre, item, function (err, res) {
+                    if (err) {
+                        if (pre < total - 1) {
+                            console.log("2");
+                            readPic_url(++pre)
+                        } else {
+                            process.exit(0);
+                        }
+                    }
+                });
+            }else{
+                if(callback){
+                    callback(1)
+                }
+            }
         }else{
+            console.log(res.statusCode);
+            if(callback){
+                callback(1)
+            }
+        }
+    });
+    req.end();
+};
+
+//readcount();
+
+
+function testdownload(port,url, callback) {
+
+    var urlinfo = urlparse(url);
+    var options = {
+        port: port,
+        method: 'GET',
+        host: urlinfo.hostname,
+        path: urlinfo.pathname
+    };
+    if(urlinfo.search) {
+        options.path += urlinfo.search;
+    }
+    console.log(options.path);
+    console.log(options.host);
+
+
+
+    var req = http.request(options, function(res) {
+        if(res.statusCode==200){
+            console.log("200");
+            var bufs= [];
+            res.on("data", function (chunk) {
+                bufs.push(chunk);
+            });
+
+            res.on("end", function () {
+                var buf = Buffer.concat(bufs);
+                uploadBuf(buf, Date.now()+".jpg", uptoken(BUCKETNAME), function (err,ret) {
+                    console.log(ret);
+                    if(err) {
+                            console.log("err");
+                    }else{
+                        var flowerDao = new FlowerDao();
+//                        flowerDao.updatePic(item._id,ret.key, function (err,data) {
+//                            console.log("6666");
+//
+//                        })
+                        console.log("6666");
+                    }
+                });
+            });
+
+        }
+        else if(res.statusCode==301||res.statusCode==302){
+            console.log(res.statusCode + "  " + url + "  " + res.headers["location"]);
+            if(port!=8080) {
+                testdownload(8080, url, function (err, res) {
+                    if (err) {
+                        console.log(err);
+                    }
+                });
+            }else{
+                if(callback){
+                    callback(1)
+                }
+            }
+        }else{
+            console.log(res.statusCode);
             if(callback){
                 callback(1)
             }
@@ -169,9 +261,12 @@ function download(pre,item, callback) {
 };
 
 
-
-
-readcount();
-
+testdownload(80,"http://g.hiphotos.baidu.com/baike/w%3D268/sign=55dddadf8f1001e94e3c1309800e7b06/5d6034a85edf8db13d02ef520b23dd54564e74dc.jpg", function (err, res) {
+    if (err) {
+       console.log(err);
+    }else{
+        console.log("else");
+    }
+});
 
 
